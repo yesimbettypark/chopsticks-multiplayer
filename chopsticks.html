@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chopsticks Game Visualization</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+      border: 1px solid #333;
+    }
+    .game-container {
+      text-align: center;
+    }
+    .controls {
+      margin-top: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      margin: 0 5px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div id="canvas-container"></div>
+    <div class="controls" id="controls">
+      <!-- Buttons will be dynamically added here -->
+    </div>
+    <div id="game-message" style="margin-top: 20px; height: 30px;"></div>
+  </div>
+
+  <script>
+    // Player class (similar to C++ Player class)
+    class Player {
+      constructor() {
+        this.leftHand = 1;
+        this.rightHand = 1;
+      }
+      
+      isDefeated() {
+        return (this.leftHand === 0 && this.rightHand === 0);
+      }
+      
+      splitHands(newLeft, newRight) {
+        if ((newLeft + newRight) === (this.leftHand + this.rightHand) && 
+            newLeft >= 0 && newRight >= 0 && 
+            newLeft !== this.rightHand && newRight !== this.leftHand) {
+          this.leftHand = newLeft;
+          this.rightHand = newRight;
+          return true;
+        } else {
+          setMessage("잘못된 분할입니다. 다시 시도하세요.");
+          return false;
+        }
+      }
+    }
+    
+    // Game state
+    let player1 = new Player();
+    let player2 = new Player();
+    let player1Turn = true;
+    let gamePhase = "SELECT_ACTION"; // Different phases: SELECT_ACTION, SELECT_ATTACK_HAND, SELECT_TARGET_HAND, SPLIT_HANDS
+    let gameOver = false;
+    
+    // Function to attack (similar to C++ attack function)
+    function attack(attacker, defender, useLeftHand, targetLeftHand) {
+      const attackValue = useLeftHand ? attacker.leftHand : attacker.rightHand;
+      
+      // Check if attack value is 0, prevent attack if true
+      if (attackValue === 0) {
+        setMessage("0인 손으로는 공격할 수 없습니다.");
+        return false;
+      }
+      
+      // Check if target hand is 0, prevent attack if true
+      const targetValue = targetLeftHand ? defender.leftHand : defender.rightHand;
+      if (targetValue === 0) {
+        setMessage("상대방의 0인 손은 공격할 수 없습니다.");
+        return false;
+      }
+      
+      // Perform attack
+      if (targetLeftHand) {
+        defender.leftHand = (defender.leftHand + attackValue) % 5;
+        if (defender.leftHand === 0) defender.leftHand = 0; // Ensure it's 0 when it would be 0
+      } else {
+        defender.rightHand = (defender.rightHand + attackValue) % 5;
+        if (defender.rightHand === 0) defender.rightHand = 0; // Ensure it's 0 when it would be 0
+      }
+      
+      return true;
+    }
+    
+    // p5.js setup function
+    function setup() {
+      const canvas = createCanvas(500, 400);
+      canvas.parent('canvas-container');
+      
+      // Set up initial UI
+      updateUI();
+    }
+    
+    // p5.js draw function
+    function draw() {
+      background(240);
+      drawPlayers();
+      
+      // Check for game over
+      if (player1.isDefeated()) {
+        gameOver = true;
+        setMessage("플레이어 2 승리!");
+      } else if (player2.isDefeated()) {
+        gameOver = true;
+        setMessage("플레이어 1 승리!");
+      }
+    }
+    
+    function drawPlayers() {
+      // Draw player 1 (bottom)
+      fill(player1Turn ? color(230, 230, 255) : 255);
+      rect(150, 300, 200, 80, 10);
+      drawHand(200, 320, player1.leftHand, "left");
+      drawHand(300, 320, player1.rightHand, "right");
+      fill(0);
+      textSize(16);
+      textAlign(CENTER);
+      text("Player 1", 250, 350);
+      
+      // Draw player 2 (top)
+      fill(player1Turn ? 255 : color(230, 230, 255));
+      rect(150, 20, 200, 80, 10);
+      drawHand(200, 60, player2.leftHand, "left");
+      drawHand(300, 60, player2.rightHand, "right");
+      fill(0);
+      text("Player 2", 250, 50);
+      
+      // Draw turn indicator
+      textSize(20);
+      text(player1Turn ? "Player 1's Turn" : "Player 2's Turn", width/2, height/2);
+    }
+    
+    function drawHand(x, y, value, side) {
+      // Hand dimensions
+      const palmWidth = 40;
+      const palmHeight = 50;
+      const fingerLength = 40;
+      const fingerWidth = 10;
+      const thumbOffset = side === "left" ? -15 : 15;
+      
+      // Draw palm
+      push();
+      translate(x, y);
+      
+      // Rotate palm slightly for more natural look
+      rotate(side === "left" ? -PI/20 : PI/20);
+      
+      // Palm color
+      fill(255, 235, 205); // Light skin tone
+      stroke(0);
+      strokeWeight(1);
+      
+      // Draw palm shape (rounded rectangle)
+      rectMode(CENTER);
+      rect(0, 0, palmWidth, palmHeight, 15);
+      
+      // Finger positions relative to palm center
+      let fingerStartPositions = [];
+      if (side === "left") {
+        // Left hand finger positions
+        fingerStartPositions = [
+          {x: -10, y: -palmHeight/2, angle: -PI/8},   // Index finger
+          {x: 0, y: -palmHeight/2, angle: -PI/16},    // Middle finger
+          {x: 10, y: -palmHeight/2, angle: PI/16},    // Ring finger
+          {x: 20, y: -palmHeight/2, angle: PI/8},     // Pinky finger
+          {x: -20, y: -5, angle: -PI/2.5}             // Thumb
+        ];
+      } else {
+        // Right hand finger positions
+        fingerStartPositions = [
+          {x: -20, y: -palmHeight/2, angle: -PI/8},   // Pinky finger
+          {x: -10, y: -palmHeight/2, angle: -PI/16},  // Ring finger
+          {x: 0, y: -palmHeight/2, angle: PI/16},     // Middle finger
+          {x: 10, y: -palmHeight/2, angle: PI/8},     // Index finger
+          {x: 20, y: -5, angle: PI/2.5}               // Thumb
+        ];
+      }
+      
+      // Draw fingers (only the ones according to the hand value)
+      for (let i = 0; i < min(value, 5); i++) {
+        const pos = fingerStartPositions[i];
+        
+        push();
+        translate(pos.x, pos.y);
+        rotate(pos.angle);
+        
+        // Finger color matching palm
+        fill(255, 235, 205);
+        
+        // Draw finger (rounded rectangle)
+        rect(0, -fingerLength/2, fingerWidth, fingerLength, 5);
+        
+        // Draw fingernail if it's extended
+        fill(255, 240, 240);
+        stroke(200, 200, 200);
+        rect(0, -fingerLength + 6, fingerWidth - 2, 8, 3);
+        
+        pop();
+      }
+      
+      // Draw knuckles - small circles at finger bases
+      stroke(0, 0, 0, 50);
+      for (let i = 0; i < min(value, 5); i++) {
+        const pos = fingerStartPositions[i];
+        fill(255, 225, 195);
+        ellipse(pos.x, pos.y, 8, 8);
+      }
+      
+      // Draw the number inside the palm
+      fill(0);
+      stroke(0);
+      strokeWeight(0);
+      textAlign(CENTER, CENTER);
+      textSize(20);
+      text(value, 0, 0);
+      
+      pop();
+    }
+    
+    function updateUI() {
+      // Clear previous controls
+      document.getElementById('controls').innerHTML = '';
+      
+      if (gameOver) {
+        const restartBtn = createButton('Restart Game');
+        restartBtn.parent('controls');
+        restartBtn.mousePressed(restartGame);
+        return;
+      }
+      
+      const currentPlayer = player1Turn ? player1 : player2;
+      const opponentPlayer = player1Turn ? player2 : player1;
+      
+      switch (gamePhase) {
+        case "SELECT_ACTION":
+          setMessage((player1Turn ? "Player 1" : "Player 2") + "의 차례입니다. 행동을 선택하세요.");
+          
+          const attackBtn = createButton('공격');
+          attackBtn.parent('controls');
+          attackBtn.mousePressed(() => {
+            gamePhase = "SELECT_ATTACK_HAND";
+            updateUI();
+          });
+          
+          const splitBtn = createButton('손가락 나누기');
+          splitBtn.parent('controls');
+          splitBtn.mousePressed(() => {
+            gamePhase = "SPLIT_HANDS";
+            updateUI();
+          });
+          break;
+          
+        case "SELECT_ATTACK_HAND":
+          setMessage("공격할 손을 선택하세요.");
+          
+          // Only show left hand option if it has non-zero value
+          if (currentPlayer.leftHand > 0) {
+            const leftBtn = createButton('왼손');
+            leftBtn.parent('controls');
+            leftBtn.mousePressed(() => {
+              gamePhase = "SELECT_TARGET_HAND";
+              attackingHand = "left";
+              updateUI();
+            });
+          }
+          
+          // Only show right hand option if it has non-zero value
+          if (currentPlayer.rightHand > 0) {
+            const rightBtn = createButton('오른손');
+            rightBtn.parent('controls');
+            rightBtn.mousePressed(() => {
+              gamePhase = "SELECT_TARGET_HAND";
+              attackingHand = "right";
+              updateUI();
+            });
+          }
+          
+          // If both hands are 0, show message and go back
+          if (currentPlayer.leftHand === 0 && currentPlayer.rightHand === 0) {
+            setMessage("공격할 수 있는 손이 없습니다.");
+            gamePhase = "SELECT_ACTION";
+            updateUI();
+          } else {
+            const backBtn1 = createButton('뒤로');
+            backBtn1.parent('controls');
+            backBtn1.mousePressed(() => {
+              gamePhase = "SELECT_ACTION";
+              updateUI();
+            });
+          }
+          break;
+          
+        case "SELECT_TARGET_HAND":
+          setMessage("상대방의 어느 손을 공격할까요?");
+          
+          // Only show opponent's left hand if it has non-zero value
+          if (opponentPlayer.leftHand > 0) {
+            const targetLeftBtn = createButton('왼손');
+            targetLeftBtn.parent('controls');
+            targetLeftBtn.mousePressed(() => {
+              // Perform attack
+              const useLeftHand = attackingHand === "left";
+              if (attack(currentPlayer, opponentPlayer, useLeftHand, true)) {
+                nextTurn();
+              } else {
+                // If attack failed, go back to hand selection
+                gamePhase = "SELECT_ATTACK_HAND";
+                updateUI();
+              }
+            });
+          }
+          
+          // Only show opponent's right hand if it has non-zero value
+          if (opponentPlayer.rightHand > 0) {
+            const targetRightBtn = createButton('오른손');
+            targetRightBtn.parent('controls');
+            targetRightBtn.mousePressed(() => {
+              // Perform attack
+              const useLeftHand = attackingHand === "left";
+              if (attack(currentPlayer, opponentPlayer, useLeftHand, false)) {
+                nextTurn();
+              } else {
+                // If attack failed, go back to hand selection
+                gamePhase = "SELECT_ATTACK_HAND";
+                updateUI();
+              }
+            });
+          }
+          
+          // If both opponent hands are 0, show message and go back
+          if (opponentPlayer.leftHand === 0 && opponentPlayer.rightHand === 0) {
+            setMessage("공격할 수 있는 상대방의 손이 없습니다.");
+            gamePhase = "SELECT_ATTACK_HAND";
+            updateUI();
+          } else {
+            const backBtn2 = createButton('뒤로');
+            backBtn2.parent('controls');
+            backBtn2.mousePressed(() => {
+              gamePhase = "SELECT_ATTACK_HAND";
+              updateUI();
+            });
+          }
+          break;
+          
+        case "SPLIT_HANDS":
+          setMessage("새로운 왼손과 오른손의 값을 입력하세요 (합: " + (currentPlayer.leftHand + currentPlayer.rightHand) + ")");
+          
+          // Create split options
+          const total = currentPlayer.leftHand + currentPlayer.rightHand;
+          for (let left = 0; left <= total; left++) {
+            const right = total - left;
+            // Only show valid splits (different from current and not repeating the same pattern)
+            if ((left !== currentPlayer.leftHand || right !== currentPlayer.rightHand) && 
+                (left !== currentPlayer.rightHand || right !== currentPlayer.leftHand) &&
+                (left >= 0 && right >= 0)) {
+              const splitOption = createButton(`${left}-${right}`);
+              splitOption.parent('controls');
+              splitOption.mousePressed(() => {
+                if (currentPlayer.splitHands(left, right)) {
+                  nextTurn();
+                }
+              });
+            }
+          }
+          
+          const backBtn3 = createButton('뒤로');
+          backBtn3.parent('controls');
+          backBtn3.mousePressed(() => {
+            gamePhase = "SELECT_ACTION";
+            updateUI();
+          });
+          break;
+      }
+    }
+    
+    // Helper function to set message
+    function setMessage(msg) {
+      document.getElementById('game-message').textContent = msg;
+    }
+    
+    // Move to next turn
+    function nextTurn() {
+      player1Turn = !player1Turn;
+      gamePhase = "SELECT_ACTION";
+      updateUI();
+    }
+    
+    // Restart the game
+    function restartGame() {
+      player1 = new Player();
+      player2 = new Player();
+      player1Turn = true;
+      gamePhase = "SELECT_ACTION";
+      gameOver = false;
+      updateUI();
+    }
+    
+    // Helper function to create and attach button
+    function createButton(label) {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      return {
+        parent: function(id) {
+          document.getElementById(id).appendChild(btn);
+        },
+        mousePressed: function(callback) {
+          btn.addEventListener('click', callback);
+        }
+      };
+    }
+  </script>
+</body>
+</html> 
