@@ -222,9 +222,20 @@ function processSplit(gameState, playerRole, newLeftValue, newRightValue) {
   const player = gameState[playerRole];
   const currentTotal = player.leftHand + player.rightHand;
   
-  // Validate split - total must be same, and values can't be the same as before
+  // Validate split - total must be same
   if (newLeftValue + newRightValue !== currentTotal) return false;
-  if (newLeftValue === player.leftHand && newRightValue === player.rightHand) return false;
+  
+  // Prevent splits that just switch hands (e.g., 1-1 to 1-1, 2-2 to 2-2)
+  if (newLeftValue === newRightValue && player.leftHand === player.rightHand) return false;
+  
+  // Prevent splits that just swap values (e.g., 1-3 to 3-1)
+  if ((newLeftValue === player.rightHand && newRightValue === player.leftHand) ||
+      (newLeftValue === player.leftHand && newRightValue === player.rightHand)) return false;
+  
+  // Prevent splits when total is 1 (can't split a single finger)
+  if (currentTotal === 1) return false;
+  
+  // Validate values are non-negative
   if (newLeftValue < 0 || newRightValue < 0) return false;
   
   // Perform split
