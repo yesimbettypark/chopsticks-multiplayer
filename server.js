@@ -11,6 +11,11 @@ const io = require('socket.io')(http, {
 // Serve static files
 app.use(express.static('.'));
 
+// Serve multiplayer.html as the root route
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/multiplayer.html');
+});
+
 // Get port from environment variable or use 3000
 const PORT = process.env.PORT || 3000;
 
