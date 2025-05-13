@@ -4,7 +4,7 @@
   "description": "Multiplayer version of the chopsticks game",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node ./server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
